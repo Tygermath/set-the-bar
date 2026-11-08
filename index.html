@@ -41,6 +41,12 @@ header p{margin:0;color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:12px 0}
 .task{margin:0 0 4px;font-weight:600}
 .hint{margin:0;color:var(--muted);font-size:.95rem}
+.banner{margin:0 0 6px;padding:8px 12px;border-radius:10px;background:var(--soft);border-left:5px solid var(--bar);font-size:1.05rem;line-height:1.45}
+.banner.back{border-left-color:var(--target)}
+.banner .dir{font-weight:700}
+.banner .tv{font-weight:700;font-size:1.15em;color:var(--target)}
+.banner.fwd .tv{color:var(--bar)}
+.banner small{color:var(--muted)}
 svg{display:block;width:100%;height:auto;touch-action:none;user-select:none}
 .m{font-family:"Times New Roman",Times,serif;font-size:1.1em}
 .m i{font-style:italic}
@@ -104,8 +110,7 @@ body.shot .card{margin:6px 0}
   </div>
 
   <div class="card">
-    <p class="task" id="task"></p>
-    <p class="hint" id="hint"></p>
+    <p class="banner" id="task"></p>
     <div id="plots"></div>
     <div class="readouts" id="readouts"></div>
   </div>
@@ -132,9 +137,9 @@ const DS = {
   dot: [{key:'D', name:'', kind:'dot', N:24, xmin:4, xmax:20, step:1, unit:'h',
          title:'Lifespans of dry batteries', short:'Battery lifespans', xlabel:'Lifespan (hours)', counts:DOT}],
   hist: [
-    {key:'A', name:'Restaurant A', kind:'hist', N:50, xmin:0, xmax:60, edges:[10,20,30,40,50], f:[5,11,13,21],
+    {key:'A', name:'Restaurant A', kind:'hist', N:50, xmin:0, xmax:50, edges:[10,20,30,40,50], f:[5,11,13,21],
      title:'Waiting times of customers at Restaurant A', short:'Waiting times: Restaurant A', xlabel:'Waiting time (min)', unit:'min'},
-    {key:'B', name:'Restaurant B', kind:'hist', N:50, xmin:0, xmax:60, edges:[10,20,30,40,50], f:[20,18,8,4],
+    {key:'B', name:'Restaurant B', kind:'hist', N:50, xmin:0, xmax:50, edges:[10,20,30,40,50], f:[20,18,8,4],
      title:'Waiting times of customers at Restaurant B', short:'Waiting times: Restaurant B', xlabel:'Waiting time (min)', unit:'min'}],
   cont: [{key:'C', name:'', kind:'cont', N:1000, xmin:0, xmax:10, step:0.1, unit:'h',
           title:'Daily screen time of 1,000 junior-high students', short:'Daily screen time (1,000 students)', xlabel:'Screen time (hours per day)'}]
@@ -214,14 +219,30 @@ function placeBars(){ if(st.mode!==2) return; for(const d of DS[st.dist]) st.x[d
 /* ---------- geometry ---------- */
 let W=900, PL=64, PR=28;
 function fitWidth(){ const el=document.getElementById('plots'); const cw=el?el.clientWidth:900;
-  W=Math.round(Math.min(900, Math.max(320, cw||900))); PL=W<600?40:64; PR=W<600?14:28; }
-const unitPx = d => (W-PL-PR)/(d.xmax-d.xmin);
+  W=Math.round(Math.min(900, Math.max(320, cw||900))); PL=W<600?40:64; PR=W<600?14:28;
+  for(const d of DS[st.dist]) setView(d); }
+// label text for p, written to the right of the bar (two lines on narrow screens)
+function pLines(d,x){ const pc=fmtP(S(d,x)*100);
+  if(d.kind==='cont') return [`p = ${pc}`];
+  const c=countStr(d,x); return W<600 ? [`p = ${c}`, `= ${pc}`] : [`p = ${c} = ${pc}`]; }
+let _cv; function textW(t){ _cv=_cv||document.createElement('canvas').getContext('2d');
+  _cv.font='bold 17px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'; return _cv.measureText(t).width; }
+// widen the visible x-axis so that, for every bar position, the p label fits inside the shaded area
+function setView(d){
+  const plotW=W-PL-PR, vmin=d.xmin, step=d.kind==='cont'?0.5:stepOf(d), tick=d.kind==='hist'?10:1;
+  let need=(d.xmax-vmin)+(d.kind==='dot'?0.6:0);
+  for(let x=d.xmin;x<=d.xmax+1e-9;x+=step){
+    const w=Math.max(...pLines(d,x).map(textW))+18;
+    if(plotW-w>20) need=Math.max(need,(x-vmin)*plotW/(plotW-w)); }
+  d.vmin=vmin; d.vmax=vmin+Math.ceil(need/tick-1e-9)*tick; }
+const vmn = d => d.vmin ?? d.xmin, vmx = d => d.vmax ?? d.xmax;
+const unitPx = d => (W-PL-PR)/(vmx(d)-vmn(d));
 const labelEvery = d => (d.kind==='dot' && unitPx(d)<24) ? 2 : 1;
-const sx = d => x => PL + (x-d.xmin)/(d.xmax-d.xmin)*(W-PL-PR);
-const inv = (d,px) => d.xmin + (px-PL)/(W-PL-PR)*(d.xmax-d.xmin);
+const sx = d => x => PL + (x-vmn(d))/(vmx(d)-vmn(d))*(W-PL-PR);
+const inv = (d,px) => vmn(d) + (px-PL)/(W-PL-PR)*(vmx(d)-vmn(d));
 
 function ticksFor(d){ const t=[]; const step = d.kind==='hist'?10:d.kind==='cont'?1:1;
-  for(let x=d.xmin;x<=d.xmax+1e-9;x+=step) t.push(x); return t; }
+  for(let x=vmn(d);x<=vmx(d)+1e-9;x+=step) t.push(x); return t; }
 
 /* ---------- plot drawing ---------- */
 function plotSVG(d){
@@ -257,10 +278,10 @@ function plotSVG(d){
   } else {
     H=290; axisY=240; const top=46, ymax=0.27, Y=v=>axisY-(v/ymax)*(axisY-top);
     let path=`M${X(0)},${axisY}`, area='';
-    for(let t=0;t<=d.xmax+1e-9;t+=0.05) path+=` L${X(t)},${Y(dens(t))}`;
+    for(let t=0;t<=vmx(d)+1e-9;t+=0.05) path+=` L${X(t)},${Y(dens(t))}`;
     const x0=Math.max(0,x); area=`M${X(x0)},${axisY}`;
-    for(let t=x0;t<=d.xmax+1e-9;t+=0.05) area+=` L${X(t)},${Y(dens(t))}`;
-    area+=` L${X(d.xmax)},${axisY} Z`;
+    for(let t=x0;t<=vmx(d)+1e-9;t+=0.05) area+=` L${X(t)},${Y(dens(t))}`;
+    area+=` L${X(vmx(d))},${axisY} Z`;
     const nobar=Q.get('nobar')==='1';
     if(!nobar) g+=`<path d="${area}" fill="var(--fillA)"/>`;
     g+=`<path d="${path}" fill="none" stroke="var(--A)" stroke-width="3"/>`;
@@ -278,10 +299,9 @@ function plotSVG(d){
 }
 // the result p, written right next to the bar so it can be watched while dragging
 function pLabel(d, px, y, x, color){
-  const txt = d.kind==='cont' ? `p = ${fmtP(S(d,x)*100)}` : `p = ${countStr(d,x)} = ${fmtP(S(d,x)*100)}`;
-  const right = px > PL + (W-PL-PR)*0.6;
-  return `<text x="${right?px-10:px+10}" y="${y}" text-anchor="${right?'end':'start'}" font-size="17" font-weight="700"
-    fill="${color}" stroke="var(--card)" stroke-width="5" paint-order="stroke" stroke-linejoin="round">${txt}</text>`;
+  const L=pLines(d,x), w=Math.max(...L.map(textW));
+  const bg=`<rect x="${px+5}" y="${y-17}" width="${w+12}" height="${L.length*21+6}" rx="6" fill="var(--card)" fill-opacity=".9" stroke="${color}" stroke-opacity=".35"/>`;
+  return bg + L.map((t,i)=>`<text x="${px+11}" y="${y+i*21}" text-anchor="start" font-size="17" font-weight="700" fill="${color}">${t}</text>`).join('');
 }
 function barSVG(px, axisY, color, label, top=44){
   return `<g style="cursor:ew-resize">
@@ -301,17 +321,17 @@ function graphSVG(){
     const col = d.key==='B'?'var(--B)':'var(--A)';
     if(d.kind==='dot'){
       const vals=Object.keys(d.counts).map(Number).sort((a,b)=>a-b); let prev=d.xmin;
-      const segs=[]; for(const v of vals){segs.push([prev,v,S(d,v)]); prev=v;} segs.push([prev,d.xmax,0]);
+      const segs=[]; for(const v of vals){segs.push([prev,v,S(d,v)]); prev=v;} segs.push([prev,vmx(d),0]);
       segs.forEach(([a,b,s],i)=>{ const yy=Y(s*100);
-        g+=`<line x1="${X(Math.max(a,d.xmin))}" x2="${X(Math.min(b,d.xmax))}" y1="${yy}" y2="${yy}" stroke="${col}" stroke-width="3"/>`;
+        g+=`<line x1="${X(Math.max(a,d.xmin))}" x2="${X(Math.min(b,vmx(d)))}" y1="${yy}" y2="${yy}" stroke="${col}" stroke-width="3"/>`;
         if(i>0) g+=`<circle cx="${X(a)}" cy="${yy}" r="5" fill="var(--card)" stroke="${col}" stroke-width="2"/>`;
         if(i<segs.length-1) g+=`<circle cx="${X(b)}" cy="${yy}" r="5" fill="${col}"/>`; });
     } else if(d.kind==='hist' && !st.even){
       for(let x=d.xmin;x<=d.xmax;x+=10) g+=`<circle cx="${X(x)}" cy="${Y(S(d,x)*100)}" r="6" fill="${col}"/>`;
-      let pth=''; for(let x=d.xmin;x<=d.xmax;x+=1) pth+=(pth?' L':'M')+X(x)+','+Y(S(d,x)*100);
+      let pth=''; for(let x=d.xmin;x<=vmx(d);x+=1) pth+=(pth?' L':'M')+X(x)+','+Y(S(d,x)*100);
       g+=`<path d="${pth}" fill="none" stroke="${col}" stroke-width="1.5" stroke-dasharray="4 5" opacity=".6"/>`;
     } else {
-      let pth=''; const s=(d.xmax-d.xmin)/300; for(let x=d.xmin;x<=d.xmax+1e-9;x+=s) pth+=(pth?' L':'M')+X(x)+','+Y(S(d,x)*100);
+      let pth=''; const s=(vmx(d)-d.xmin)/300; for(let x=d.xmin;x<=vmx(d)+1e-9;x+=s) pth+=(pth?' L':'M')+X(x)+','+Y(S(d,x)*100);
       g+=`<path d="${pth}" fill="none" stroke="${col}" stroke-width="3"/>`;
     }
     const x=st.x[d.key], yy=Y(S(d,x)*100);
@@ -414,8 +434,11 @@ function render(){
   fitWidth();
   document.querySelectorAll('#distSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.d===st.dist));
   document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.m===st.mode));
-  document.getElementById('task').innerHTML = `${st.mode===1?'Forward':'Backward'}: ${TASK[st.mode][0].replace(/\b([xp])\b/g,'<i>$1</i>')}`;
-  document.getElementById('hint').innerHTML = TASK[st.mode][1];
+  const tEl=document.getElementById('task'), d0=DS[st.dist][0];
+  tEl.className = 'banner ' + (st.mode===1 ? 'fwd' : 'back');
+  tEl.innerHTML = st.mode===1
+    ? `<span class="dir">Forward →</span> Adjust the bar to match the target: <i>x</i>-value = <span class="tv">${fmtX(d0, st.x[d0.key])}</span>`
+    : `<span class="dir">← Backward</span> Adjust the bar to match the target: <i>p</i>-value = <span class="tv">${fmtP(st.p)}</span><br><small>If it can't match exactly, take the closest.</small>`;
   document.getElementById('plots').innerHTML = DS[st.dist].map(plotSVG).join('');
   document.getElementById('readouts').innerHTML = readouts();
   document.getElementById('ctlCard').innerHTML = controls();
