@@ -93,10 +93,10 @@ body.shot .card{margin:6px 0}
       </div>
     </div>
     <div class="bar-row">
-      <span class="lbl">Mode</span>
+      <span class="lbl">Direction</span>
       <div class="seg" id="modeSeg">
-        <button data-m="1">1 · Given <i>x</i>, find <i>p</i></button>
-        <button data-m="2">2 · Given <i>p</i>, find <i>x</i></button>
+        <button data-m="1">Forward → · Given <i>x</i>, find <i>p</i></button>
+        <button data-m="2">← Reverse · Given <i>p</i>, find <i>x</i></button>
       </div>
       <label class="chk"><input type="checkbox" id="graphChk" checked> Show graph of <span class="m">&nbsp;<i>P</i>(<i>X</i> ≥ <i>x</i>)</span></label>
       <label class="chk"><input type="checkbox" id="soundChk" checked> Click sound</label>
@@ -120,7 +120,7 @@ body.shot .card{margin:6px 0}
   <div class="card tablecard" id="tableCard"></div>
   <div class="card qcard" id="qCard"></div>
 
-  <footer>Drag the bar or use the ← → keys. In Mode 2, change <i>p</i> and watch the bar move to the best <i>x</i>; you can still drag it to test other values.</footer>
+  <footer>Drag the bar or use the ← → keys. In Reverse, change <i>p</i> and watch the bar move to the best <i>x</i>; you can still drag it to test other values.</footer>
 </div>
 
 <script>
@@ -156,7 +156,7 @@ const st = {
   mode: Q.get('mode')==='2'?2:1,
   p: Q.has('p')?+Q.get('p'):50,
   even: Q.get('even')==='1',
-  x: {}, sound:true, graph: Q.get('graph')!=='0'
+  x: {}, sound:true, graph: Q.get('graph')==='1'
 };
 const defaults = {D:15, A:30, B:30, C:5};
 for(const k in defaults) st.x[k]=defaults[k];
@@ -379,15 +379,15 @@ function table(){
 /* ---------- questions ---------- */
 function questions(){
   if(st.dist==='dot') return `<p class="task">Try this</p>
-    <p class="q">Mode 2: set <i>p</i> = 90%, 80% and 10%. Why is there no exact answer? Look at the jumps in the graph.</p>
+    <p class="q">Reverse: set <i>p</i> = 90%, 80% and 10%. Why is there no exact answer? Look at the jumps in the graph.</p>
     <details><summary>Show answer</summary><p>P(X ≥ x) can only take the values 24/24, 22/24, 21/24, …, so it jumps over 90%, 80% and 10%. The closest x-values are 7 (91.7%), 12 (75%) and 18 (12.5%).</p></details>`;
   if(st.dist==='hist') return `<p class="task">Which restaurant has shorter waiting times?</p>
-    <p class="q">(1) Mode 1: line both bars up at <i>x</i> = 30. Compare the <i>p</i>-values.<br>(2) Mode 2: set <i>p</i> = 50%. Compare the <i>x</i>-values.</p>
+    <p class="q">(1) Forward: line both bars up at <i>x</i> = 30. Compare the <i>p</i>-values.<br>(2) Reverse: set <i>p</i> = 50%. Compare the <i>x</i>-values.</p>
     <details><summary>Show answer</summary><p>(1) A: 34/50 = 68%, B: 12/50 = 24% waited more than 30 minutes.<br>
     (2) With bars only at class boundaries: A → x = 40 (42%), B → x = 20 (60%) are the closest. With 1-minute steps (data spread evenly): A ≈ 36.9 min, B ≈ 22.8 min.<br>
     Restaurant B has shorter waiting times.</p></details>`;
   return `<p class="task">Screen time</p>
-    <p class="q">(1) Mode 1: what percentage of students spend 5 hours or more on screens each day?<br>(2) Mode 2: the top 10% of screen users spend at least how many hours a day?</p>
+    <p class="q">(1) Forward: what percentage of students spend 5 hours or more on screens each day?<br>(2) Reverse: the top 10% of screen users spend at least how many hours a day?</p>
     <details><summary>Show answer</summary><p>(1) P(X ≥ 5) ≈ 15.5%. (2) P(X ≥ x) = 10% gives x ≈ 5.8 hours. For a smooth curve, every p between 0% and 100% has exactly one x.</p></details>`;
 }
 
@@ -399,7 +399,7 @@ const TASK = {
 function render(){
   document.querySelectorAll('#distSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.d===st.dist));
   document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.m===st.mode));
-  document.getElementById('task').innerHTML = `Mode ${st.mode}: ${TASK[st.mode][0].replace(/\b([xp])\b/g,'<i>$1</i>')}`;
+  document.getElementById('task').innerHTML = `${st.mode===1?'Forward':'Reverse'}: ${TASK[st.mode][0].replace(/\b([xp])\b/g,'<i>$1</i>')}`;
   document.getElementById('hint').innerHTML = TASK[st.mode][1];
   document.getElementById('plots').innerHTML = DS[st.dist].map(plotSVG).join('');
   document.getElementById('readouts').innerHTML = readouts();
