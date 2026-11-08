@@ -238,6 +238,7 @@ function plotSVG(d){
     g+=barSVG(X(x), axisY, color, `x = ${fmtX(d,x)}`);
     for(const v in d.counts){ for(let k=0;k<d.counts[v];k++){
       const on=+v>=x; g+=`<circle cx="${X(+v)}" cy="${axisY-R-7-k*GAP}" r="${R}" fill="${on?'var(--dot)':'var(--off)'}" stroke="var(--card)" stroke-width="2"/>`; } }
+    g+=pLabel(d, X(x), 96, x, color);
   } else if(d.kind==='hist'){
     H=300; axisY=246; const top=46, fmax=25, Y=f=>axisY-(f/fmax)*(axisY-top);
     for(let f=5;f<=fmax;f+=5) g+=`<line x1="${PL}" x2="${W-PR}" y1="${Y(f)}" y2="${Y(f)}" stroke="var(--soft)"/><text x="${PL-8}" y="${Y(f)+5}" text-anchor="end" font-size="14" fill="var(--muted)">${f}</text>`;
@@ -252,6 +253,7 @@ function plotSVG(d){
     if(ghosts && ghosts.xs.length>1) for(const gx of ghosts.xs) if(gx!==x)
       g+=`<line x1="${X(gx)}" x2="${X(gx)}" y1="56" y2="${axisY}" stroke="var(--ghost)" stroke-width="3" stroke-dasharray="6 5"/>`;
     g+=barSVG(X(x), axisY, color, `x = ${fmtX(d,x)}`, top-6);
+    g+=pLabel(d, X(x), top+46, x, color);
   } else {
     H=290; axisY=240; const top=46, ymax=0.27, Y=v=>axisY-(v/ymax)*(axisY-top);
     let path=`M${X(0)},${axisY}`, area='';
@@ -264,7 +266,7 @@ function plotSVG(d){
     g+=`<path d="${path}" fill="none" stroke="var(--A)" stroke-width="3"/>`;
     g+=`<text x="16" y="${(top+axisY)/2}" font-size="14" fill="var(--muted)" transform="rotate(-90 16 ${(top+axisY)/2})" text-anchor="middle">area = proportion</text>`;
     if(!nobar){ g+=barSVG(X(x), axisY, color, `x = ${fmtX(d,x)}`, top-6);
-    g+=`<text x="${W-PR}" y="${top+44}" text-anchor="end" font-size="15" font-weight="700" fill="var(--A)">shaded area = ${fmtP(S(d,x)*100)}</text>`; }
+    g+=pLabel(d, X(x), top+46, x, color); }
   }
   // axis
   g+=`<line x1="${PL-10}" x2="${W-PR+6}" y1="${axisY}" y2="${axisY}" stroke="var(--ink)" stroke-width="1.6"/>`;
@@ -273,6 +275,13 @@ function plotSVG(d){
   g+=`<text x="${(PL+W-PR)/2}" y="${axisY+46}" text-anchor="middle" font-size="15" fill="var(--muted)">${d.xlabel}</text>`;
   const title=`<text x="${W/2}" y="24" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)">${W<600&&d.short?d.short:d.title}</text>`;
   return `<svg viewBox="0 0 ${W} ${H+20}" data-key="${d.key}" tabindex="0" role="slider" aria-label="${d.title}: cut-off x" aria-valuenow="${x}">${title}${g}</svg>`;
+}
+// the result p, written right next to the bar so it can be watched while dragging
+function pLabel(d, px, y, x, color){
+  const txt = d.kind==='cont' ? `p = ${fmtP(S(d,x)*100)}` : `p = ${countStr(d,x)} = ${fmtP(S(d,x)*100)}`;
+  const right = px > PL + (W-PL-PR)*0.6;
+  return `<text x="${right?px-10:px+10}" y="${y}" text-anchor="${right?'end':'start'}" font-size="17" font-weight="700"
+    fill="${color}" stroke="var(--card)" stroke-width="5" paint-order="stroke" stroke-linejoin="round">${txt}</text>`;
 }
 function barSVG(px, axisY, color, label, top=44){
   return `<g style="cursor:ew-resize">
@@ -323,7 +332,7 @@ function readouts(){
   return DS[st.dist].map(d=>{
     const x=st.x[d.key], xs=fmtX(d,x), pv=S(d,x)*100, who=d.name?`<span class="tag" style="color:${d.key==='B'?'var(--B)':'var(--A)'}">${d.name}</span><br>`:'';
     if(st.mode===1){
-      const cnt = d.kind==='cont' ? '' : `${nof(xs)} = ${countStr(d,x).replace('/'+d.N,'')}&nbsp;&nbsp;&nbsp;`;
+      const cnt = d.kind==='cont' ? '' : `${nof(xs)} = ${countStr(d,x).replace('/'+d.N,'')}<br>`;
       return `<div class="ro">${who}<span class="big">${cnt}${Pof(xs)} = ${d.kind==='cont'?'':countStr(d,x)+' = '}<b>${fmtP(pv)}</b></span></div>`;
     }
     const sol=solve(d,st.p), diff=Math.abs(pv-st.p), onBest=sol.xs.some(v=>Math.abs(v-x)<1e-6);
