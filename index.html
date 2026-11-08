@@ -130,14 +130,14 @@ const DOT = {6:2,7:1,11:3,12:4,14:2,15:3,16:5,17:1,18:3};
 const THETA = 1.5; // continuous model: gamma(shape 2, scale 1.5), mean 3 h
 const DS = {
   dot: [{key:'D', name:'', kind:'dot', N:24, xmin:4, xmax:20, step:1, unit:'h',
-         title:'Lifespans of dry batteries', xlabel:'Lifespan (hours)', counts:DOT}],
+         title:'Lifespans of dry batteries', short:'Battery lifespans', xlabel:'Lifespan (hours)', counts:DOT}],
   hist: [
     {key:'A', name:'Restaurant A', kind:'hist', N:50, xmin:0, xmax:60, edges:[10,20,30,40,50], f:[5,11,13,21],
-     title:'Waiting times of customers at Restaurant A', xlabel:'Waiting time (min)', unit:'min'},
+     title:'Waiting times of customers at Restaurant A', short:'Waiting times: Restaurant A', xlabel:'Waiting time (min)', unit:'min'},
     {key:'B', name:'Restaurant B', kind:'hist', N:50, xmin:0, xmax:60, edges:[10,20,30,40,50], f:[20,18,8,4],
-     title:'Waiting times of customers at Restaurant B', xlabel:'Waiting time (min)', unit:'min'}],
+     title:'Waiting times of customers at Restaurant B', short:'Waiting times: Restaurant B', xlabel:'Waiting time (min)', unit:'min'}],
   cont: [{key:'C', name:'', kind:'cont', N:1000, xmin:0, xmax:10, step:0.1, unit:'h',
-          title:'Daily screen time of 1,000 junior-high students', xlabel:'Screen time (hours per day)'}]
+          title:'Daily screen time of 1,000 junior-high students', short:'Daily screen time (1,000 students)', xlabel:'Screen time (hours per day)'}]
 };
 const dens = t => t<=0?0: t/(THETA*THETA)*Math.exp(-t/THETA);
 function S(d, x){ // proportion with X >= x (0..1)
@@ -212,7 +212,11 @@ function solve(d, p){
 function placeBars(){ if(st.mode!==2) return; for(const d of DS[st.dist]) st.x[d.key]=solve(d,st.p).x; }
 
 /* ---------- geometry ---------- */
-const W=900, PL=64, PR=28;
+let W=900, PL=64, PR=28;
+function fitWidth(){ const el=document.getElementById('plots'); const cw=el?el.clientWidth:900;
+  W=Math.round(Math.min(900, Math.max(320, cw||900))); PL=W<600?40:64; PR=W<600?14:28; }
+const unitPx = d => (W-PL-PR)/(d.xmax-d.xmin);
+const labelEvery = d => (d.kind==='dot' && unitPx(d)<24) ? 2 : 1;
 const sx = d => x => PL + (x-d.xmin)/(d.xmax-d.xmin)*(W-PL-PR);
 const inv = (d,px) => d.xmin + (px-PL)/(W-PL-PR)*(d.xmax-d.xmin);
 
@@ -227,12 +231,13 @@ function plotSVG(d){
   const ghosts = st.mode===2 ? solve(d,st.p) : null;
   if(d.kind==='dot'){
     H=280; axisY=232;
-    g+=`<rect x="${X(x)-13}" y="44" width="${W-PR-X(x)+13}" height="${axisY-44}" fill="var(--zone)"/>`;
+    const R=Math.min(9, unitPx(d)*0.42), GAP=Math.min(22, 2*R+4);
+    g+=`<rect x="${X(x)-R-3}" y="44" width="${W-PR-X(x)+R+3}" height="${axisY-44}" fill="var(--zone)"/>`;
     if(ghosts && ghosts.xs.length>1) for(const gx of ghosts.xs) if(gx!==x)
       g+=`<line x1="${X(gx)}" x2="${X(gx)}" y1="56" y2="${axisY}" stroke="var(--ghost)" stroke-width="3" stroke-dasharray="6 5"/>`;
     g+=barSVG(X(x), axisY, color, `x = ${fmtX(d,x)}`);
     for(const v in d.counts){ for(let k=0;k<d.counts[v];k++){
-      const on=+v>=x; g+=`<circle cx="${X(+v)}" cy="${axisY-16-k*22}" r="9" fill="${on?'var(--dot)':'var(--off)'}" stroke="var(--card)" stroke-width="2"/>`; } }
+      const on=+v>=x; g+=`<circle cx="${X(+v)}" cy="${axisY-R-7-k*GAP}" r="${R}" fill="${on?'var(--dot)':'var(--off)'}" stroke="var(--card)" stroke-width="2"/>`; } }
   } else if(d.kind==='hist'){
     H=300; axisY=246; const top=46, fmax=25, Y=f=>axisY-(f/fmax)*(axisY-top);
     for(let f=5;f<=fmax;f+=5) g+=`<line x1="${PL}" x2="${W-PR}" y1="${Y(f)}" y2="${Y(f)}" stroke="var(--soft)"/><text x="${PL-8}" y="${Y(f)+5}" text-anchor="end" font-size="14" fill="var(--muted)">${f}</text>`;
@@ -259,14 +264,14 @@ function plotSVG(d){
     g+=`<path d="${path}" fill="none" stroke="var(--A)" stroke-width="3"/>`;
     g+=`<text x="16" y="${(top+axisY)/2}" font-size="14" fill="var(--muted)" transform="rotate(-90 16 ${(top+axisY)/2})" text-anchor="middle">area = proportion</text>`;
     if(!nobar){ g+=barSVG(X(x), axisY, color, `x = ${fmtX(d,x)}`, top-6);
-    g+=`<text x="${Math.min(X(x)+10, W-PR-150)}" y="${axisY-14}" font-size="15" fill="var(--ink)">area = ${fmtP(S(d,x)*100)}</text>`; }
+    g+=`<text x="${W-PR}" y="${top+44}" text-anchor="end" font-size="15" font-weight="700" fill="var(--A)">shaded area = ${fmtP(S(d,x)*100)}</text>`; }
   }
   // axis
   g+=`<line x1="${PL-10}" x2="${W-PR+6}" y1="${axisY}" y2="${axisY}" stroke="var(--ink)" stroke-width="1.6"/>`;
-  for(const t of ticksFor(d)){ g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${axisY-5}" y2="${axisY+5}" stroke="var(--ink)" stroke-width="1.4"/>`;
-    g+=`<text x="${X(t)}" y="${axisY+24}" text-anchor="middle" font-size="15" fill="var(--ink)">${t}</text>`; }
+  ticksFor(d).forEach((t,ti)=>{ g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${axisY-5}" y2="${axisY+5}" stroke="var(--ink)" stroke-width="1.4"/>`;
+    if(ti%labelEvery(d)===0) g+=`<text x="${X(t)}" y="${axisY+24}" text-anchor="middle" font-size="15" fill="var(--ink)">${t}</text>`; });
   g+=`<text x="${(PL+W-PR)/2}" y="${axisY+46}" text-anchor="middle" font-size="15" fill="var(--muted)">${d.xlabel}</text>`;
-  const title=`<text x="${W/2}" y="24" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)">${d.title}</text>`;
+  const title=`<text x="${W/2}" y="24" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)">${W<600&&d.short?d.short:d.title}</text>`;
   return `<svg viewBox="0 0 ${W} ${H+20}" data-key="${d.key}" tabindex="0" role="slider" aria-label="${d.title}: cut-off x" aria-valuenow="${x}">${title}${g}</svg>`;
 }
 function barSVG(px, axisY, color, label, top=44){
@@ -308,7 +313,7 @@ function graphSVG(){
     g+=`<line x1="${PL}" x2="${W-PR}" y1="${yy}" y2="${yy}" stroke="var(--target)" stroke-width="2.5" stroke-dasharray="9 6"/>`;
     g+=`<text x="${W-PR-4}" y="${yy-8}" text-anchor="end" font-size="15" font-weight="700" fill="var(--target)">target p = ${fmtP(st.p)}</text>`; }
   g+=`<line x1="${PL-10}" x2="${W-PR+6}" y1="${axisY}" y2="${axisY}" stroke="var(--ink)" stroke-width="1.4"/>`;
-  for(const t of ticksFor(d0)) g+=`<text x="${X(t)}" y="${axisY+22}" text-anchor="middle" font-size="14" fill="var(--ink)">${t}</text>`;
+  ticksFor(d0).forEach((t,ti)=>{ if(ti%labelEvery(d0)===0) g+=`<text x="${X(t)}" y="${axisY+22}" text-anchor="middle" font-size="14" fill="var(--ink)">${t}</text>`; });
   g+=`<text x="${(PL+W-PR)/2}" y="${axisY+40}" text-anchor="middle" font-size="14" fill="var(--muted)">${d0.xlabel}</text>`;
   return `<svg viewBox="0 0 ${W} ${H+8}">${g}</svg>`;
 }
@@ -397,6 +402,7 @@ const TASK = {
   2:['Given p, find x','Set a target p. Where must the bar go so that P(X ≥ x) = p? If no x hits it exactly, take the closest.']
 };
 function render(){
+  fitWidth();
   document.querySelectorAll('#distSeg button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.d===st.dist));
   document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.m===st.mode));
   document.getElementById('task').innerHTML = `${st.mode===1?'Forward':'Backward'}: ${TASK[st.mode][0].replace(/\b([xp])\b/g,'<i>$1</i>')}`;
@@ -462,6 +468,7 @@ document.getElementById('ctlCard').addEventListener('change', e=>{
 document.getElementById('graphChk').checked = st.graph;
 for(const d of [...DS.dot,...DS.hist,...DS.cont]) st.x[d.key]=snap(d,st.x[d.key]);
 placeBars(); render();
+let rz; window.addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(render,120); });
 })();
 </script>
 </body>
