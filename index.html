@@ -248,7 +248,7 @@ function pLabel(d, px, y, x, color, flash, note){
   const L=pLines(d,x); if(note) L.push(note);
   const w=Math.max(...L.map(textW));
   return `<g class="${flash?'flash':''}"><rect x="${px-17-w}" y="${y-17}" width="${w+12}" height="${L.length*21+6}" rx="6" fill="var(--card)" fill-opacity=".92" stroke="${color}" stroke-opacity=".35"/>`
-    + L.map((t,i)=>`<text x="${px-11}" y="${y+i*21}" text-anchor="end" font-size="17" font-weight="700" fill="${note&&i===L.length-1?'var(--warn)':color}">${t}</text>`).join('') + `</g>`;
+    + L.map((t,i)=>`<text x="${px-11}" y="${y+i*21}" text-anchor="end" font-size="17" font-weight="700" fill="${note&&i===L.length-1?'var(--warn)':color}">${t.startsWith('p ') ? '<tspan font-style="italic" font-family="Times New Roman,serif" font-size="20">p</tspan>'+t.slice(1) : t}</text>`).join('') + `</g>`;
 }
 function plotSVG(d){
   const X=sx(d), x=st.x[d.key], fx=st.fx[d.key]||{};
