@@ -44,7 +44,7 @@ header p{margin:0;color:var(--muted)}
 .lbl{color:var(--muted);font-size:.9rem}
 label.chk{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:12px 0}
-/* mission banner */
+/* goal banner */
 .banner{--c:var(--bar);display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 8px;padding:10px 14px;border-radius:12px;
   border:1.5px solid color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 9%,var(--card));line-height:1.4}
 .banner.inv{--c:var(--target)}
@@ -367,8 +367,8 @@ function renderBanner(){
                      : 'Choose p, then press Play: the bar moves in from the left until P(X ≤ x) reaches p. If it jumps past p, the closer of the two neighbouring x-values wins (a tie goes to the larger x).')
       : (st.mode===1 ? 'Type your own target, then drag the bar.' : "Type your own target, then drag the bar. If it can't match exactly, take the closest.");
     tEl.innerHTML = st.mode===1
-      ? `<span class="tag">MISSION</span><span class="goal"><span class="dir">Function →</span> Set the bar at <span class="chip"><i>x</i> = ${inp}</span> and read <i>p</i>.</span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`
-      : `<span class="tag">MISSION</span><span class="goal"><span class="dir">← Inverse Function</span> Move the bar so that <span class="chip"><i>p</i> = ${inp}</span></span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`;
+      ? `<span class="tag">GOAL</span><span class="goal"><span class="dir">Function →</span> Set the bar at <span class="chip"><i>x</i> = ${inp}</span> and read <i>p</i>.</span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`
+      : `<span class="tag">GOAL</span><span class="goal"><span class="dir">← Inverse Function</span> Move the bar so that <span class="chip"><i>p</i> = ${inp}</span></span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`;
   }
   let cls, txt;
   if(st.run==='demo'){ cls = demoMsg ? demoMsg.cls : 'go'; txt = demoMsg ? demoMsg.txt : 'Press Play'; }
