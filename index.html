@@ -35,6 +35,12 @@ header p{margin:0;color:var(--muted)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--bar);color:#fff}
 .seg button:hover{filter:brightness(.96)}
+.fname{font-weight:700;color:#b7791f}
+.seg button[aria-pressed="true"] .fname{color:#fde047}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fname{color:#fbbf24}
+  :root:not([data-theme="light"]) .seg button[aria-pressed="true"] .fname{color:#fef08a;text-shadow:0 0 3px #1e3a8a,0 1px 2px #0b1220}}
+:root[data-theme="dark"] .fname{color:#fbbf24}
+:root[data-theme="dark"] .seg button[aria-pressed="true"] .fname{color:#fef08a;text-shadow:0 0 3px #1e3a8a,0 1px 2px #0b1220}
 .lbl{color:var(--muted);font-size:.9rem}
 label.chk{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:12px 0}
@@ -97,8 +103,8 @@ body.shot .card{margin:6px 0}
     <div class="bar-row">
       <span class="lbl">Direction</span>
       <div class="seg" id="modeSeg">
-        <button data-m="1">Function → · Given <i>x</i>, find <i>p</i></button>
-        <button data-m="2">← Inverse function · Given <i>p</i>, find <i>x</i></button>
+        <button data-m="1"><span class="fname">Function</span> → · Given <i>x</i>, find <i>p</i></button>
+        <button data-m="2">← <span class="fname">Inverse Function</span> · Given <i>p</i>, find <i>x</i></button>
       </div>
       <label class="chk"><input type="checkbox" id="graphChk"> Show graph of <span class="m">&nbsp;<i>P</i>(<i>X</i> ≤ <i>x</i>)</span></label>
       <label class="chk" id="evenWrap"><input type="checkbox" id="evenChk"> 1-minute steps (data spread evenly inside each bar)</label>
@@ -337,7 +343,7 @@ function readouts(){
     if(d.kind==='hist'){        // a histogram shows P(X < x), not P(X = x): ask for P(X >= x) = 1 - P(X < x)
       const lt=S(d,x)*100, PL_=v=>M(`<i>P</i>(<i>X</i> &lt; ${v})`), PG=v=>M(`<i>P</i>(<i>X</i> ≥ ${v})`);
       return `<div class="ro">${who}<span class="big">${PL_(xs)} = ${countStr(d,x)} = <b>${fmtP(lt)}</b><br>${PG(xs)} = 1 − ${fmtP(lt)} = <b>${fmtP(100-lt)}</b></span>
-        <br><small style="color:var(--muted)">${Pof(xs)} = ${PL_(xs)} + ${M(`<i>P</i>(<i>X</i> = ${xs})`)}, but a histogram cannot show ${M(`<i>P</i>(<i>X</i> = ${xs})`)}: use ${PL_(xs)} as an approximation.</small></div>`;
+        <br><small style="color:var(--muted)">${Pof(xs)} ≈ ${PL_(xs)}: data equal to ${xs} are counted to the right of the bar, so ${PL_(xs)} is used as an approximation of ${Pof(xs)}.</small></div>`;
     }
     const cnt = d.kind==='cont' ? '' : `${nof(xs)} = ${countStr(d,x).replace('/'+d.N,'')}<br>`;
     return `<div class="ro">${who}<span class="big">${cnt}${Pof(xs)} = ${d.kind==='cont'?'':countStr(d,x)+' = '}<b>${fmtP(S(d,x)*100)}</b></span></div>`;
@@ -362,7 +368,7 @@ function renderBanner(){
       : (st.mode===1 ? 'Type your own target, then drag the bar.' : "Type your own target, then drag the bar. If it can't match exactly, take the closest.");
     tEl.innerHTML = st.mode===1
       ? `<span class="tag">MISSION</span><span class="goal"><span class="dir">Function →</span> Set the bar at <span class="chip"><i>x</i> = ${inp}</span> and read <i>p</i>.</span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`
-      : `<span class="tag">MISSION</span><span class="goal"><span class="dir">← Inverse function</span> Move the bar so that <span class="chip"><i>p</i> = ${inp}</span></span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`;
+      : `<span class="tag">MISSION</span><span class="goal"><span class="dir">← Inverse Function</span> Move the bar so that <span class="chip"><i>p</i> = ${inp}</span></span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`;
   }
   let cls, txt;
   if(st.run==='demo'){ cls = demoMsg ? demoMsg.cls : 'go'; txt = demoMsg ? demoMsg.txt : 'Press Play'; }
