@@ -205,7 +205,8 @@ function ticksFor(d){ const t=[], s=tickStep(d); for(let x=d.xmin; x<=vmx(d)+1e-
 
 function pLines(d,x){ const pc=fmtP(S(d,x)*100);
   if(d.kind==='cont') return [`p = ${pc}`];
-  const c=countStr(d,x); return W<600 ? [`p = ${c}`, `= ${pc}`] : [`p = ${c} = ${pc}`]; }
+  const c=countStr(d,x), eq = d.kind==='hist' ? '≈' : '=';
+  return W<600 ? [`p ${eq} ${c}`, `= ${pc}`] : [`p ${eq} ${c} = ${pc}`]; }
 let _cv; function textW(t){ _cv=_cv||document.createElement('canvas').getContext('2d');
   _cv.font='bold 17px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'; return _cv.measureText(t).width; }
 // the p label sits LEFT of the bar, inside the shaded (collected) area: widen the axis to the left if needed
@@ -333,6 +334,11 @@ function graphSVG(){
 function readouts(){
   return DS[st.dist].map(d=>{
     const x=st.x[d.key], xs=fmtX(d,x), who=d.name?`<span class="who" style="color:${d.key==='B'?'var(--B)':'var(--A)'}">${d.name}</span><br>`:'';
+    if(d.kind==='hist'){        // a histogram shows P(X < x), not P(X = x): ask for P(X >= x) = 1 - P(X < x)
+      const lt=S(d,x)*100, PL_=v=>M(`<i>P</i>(<i>X</i> &lt; ${v})`), PG=v=>M(`<i>P</i>(<i>X</i> ≥ ${v})`);
+      return `<div class="ro">${who}<span class="big">${PL_(xs)} = ${countStr(d,x)} = <b>${fmtP(lt)}</b><br>${PG(xs)} = 1 − ${fmtP(lt)} = <b>${fmtP(100-lt)}</b></span>
+        <br><small style="color:var(--muted)">${Pof(xs)} = ${PL_(xs)} + ${M(`<i>P</i>(<i>X</i> = ${xs})`)}, but a histogram cannot show ${M(`<i>P</i>(<i>X</i> = ${xs})`)}: use ${PL_(xs)} as an approximation.</small></div>`;
+    }
     const cnt = d.kind==='cont' ? '' : `${nof(xs)} = ${countStr(d,x).replace('/'+d.N,'')}<br>`;
     return `<div class="ro">${who}<span class="big">${cnt}${Pof(xs)} = ${d.kind==='cont'?'':countStr(d,x)+' = '}<b>${fmtP(S(d,x)*100)}</b></span></div>`;
   }).join('');
@@ -362,7 +368,7 @@ function renderBanner(){
   if(st.run==='demo'){ cls = demoMsg ? demoMsg.cls : 'go'; txt = demoMsg ? demoMsg.txt : 'Press Play'; }
   else if(st.mode===1){
     const tx=st.tx[st.dist], x=st.x[d0.key], g=snap(d0,tx);
-    const ps=list.map(q=>tagOf(q)+'<i>p</i> = '+fmtP(S(q,st.x[q.key])*100)).join(' · ');
+    const ps=list.map(q=>tagOf(q)+'<i>p</i> '+(q.kind==='hist'?'≈':'=')+' '+fmtP(S(q,st.x[q.key])*100)).join(' · ');
     if(Math.abs(x-tx)<1e-6){ cls='ok'; txt='✓ On target → '+ps; }
     else if(Math.abs(x-g)<1e-6){ cls='near'; txt='≈ Closest possible → '+ps; }
     else { cls='go'; txt='Keep moving'; }
@@ -393,7 +399,7 @@ function render(){
   const showG = st.graph && (!SHOT || shotParts.includes('graph'));
   gc.style.display = showG ? '' : 'none';
   if(showG){ document.getElementById('graph').innerHTML = graphSVG();
-    document.getElementById('glegend').innerHTML = `<span>Graph of ${Pof('<i>x</i>')}</span>` + (st.dist==='hist'
+    document.getElementById('glegend').innerHTML = `<span>Graph of ${st.dist==='hist' ? M('<i>P</i>(<i>X</i> &lt; <i>x</i>)') : Pof('<i>x</i>')}</span>` + (st.dist==='hist'
       ? `<span><span class="sw" style="background:var(--A)"></span>Restaurant A</span><span><span class="sw" style="background:var(--B)"></span>Restaurant B</span>`:'')
       + (st.dist==='dot' ? `<span>● included &nbsp;○ not included</span>`:''); }
   if(SHOT && !shotParts.includes('task')) document.getElementById('task').style.display='none';
