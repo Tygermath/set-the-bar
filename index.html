@@ -55,6 +55,7 @@ label.chk{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .banner .chip input{width:4.6em;border:0;background:transparent;font:inherit;color:inherit;text-align:center;padding:0;margin:0 0 0 2px}
 .banner .chip input:focus{outline:2px solid var(--c);outline-offset:2px;border-radius:4px}
 .banner .play{border:0;border-radius:999px;background:var(--c);color:var(--card);font:inherit;font-weight:700;padding:4px 14px;cursor:pointer}
+.banner .ackBtn{border:0;border-radius:999px;background:#c2410c;color:#fff;font:inherit;font-weight:700;padding:3px 12px;margin-left:8px;cursor:pointer}
 .banner .status{margin-left:auto;font-weight:700;font-size:.95rem;padding:3px 10px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
 .banner .status.ok{color:var(--ok);border-color:var(--ok);background:var(--okbg)}
 .banner .status.near{color:var(--target);border-color:var(--target)}
@@ -351,7 +352,7 @@ function readouts(){
 }
 
 /* ================= banner ================= */
-let demoMsg = '';          // status text while a demo runs / after it ends
+let demoMsg = '', ackResolve = null;          // status text while a demo runs / after it ends
 function renderBanner(){
   const tEl=document.getElementById('task'), list=DS[st.dist], d0=list[0], tagOf=d=>d.name?d.key+': ':'';
   tEl.className = 'banner ' + (st.mode===1 ? 'fn' : 'inv');
@@ -364,7 +365,7 @@ function renderBanner(){
     const play = st.run==='demo' ? `<button class="play" id="playBtn">▶ Play</button>` : '';
     const note = st.run==='demo'
       ? (st.mode===1 ? 'Choose x, then press Play: the bar moves in from the left until it reaches x.'
-                     : 'Choose p, then press Play: the bar moves in from the left until P(X ≤ x) reaches p. If it jumps past p, the closer of the two neighbouring x-values wins (a tie goes to the larger x).')
+                     : 'Choose p, then press Play: the bar moves in from the left until P(X ≤ x) reaches p. If it jumps past p, the closer of the two neighbouring x-values wins (a tie goes to the larger x). The demo pauses at three key steps (overshoot, step back one, compare): press the button to continue.')
       : (st.mode===1 ? 'Type your own target, then drag the bar.' : "Type your own target, then drag the bar. If it can't match exactly, take the closest.");
     tEl.innerHTML = st.mode===1
       ? `<span class="tag">GOAL</span><span class="goal"><span class="dir">Function →</span> Set the bar at <span class="chip"><i>x</i> = ${inp}</span> and read <i>p</i>.</span>${play}<span class="status" id="tStat"></span><span class="note">${note}</span>`
@@ -386,7 +387,7 @@ function renderBanner(){
     cls = r.every(q=>q.c==='ok')?'ok' : r.some(q=>q.c==='go')?'go':'near';
     txt = list.length>1 ? r.map((q,i)=>tagOf(list[i])+q.t).join(' · ') : r[0].t;
   }
-  const sEl=document.getElementById('tStat'); sEl.className='status '+cls; sEl.innerHTML=txt;
+  const sEl=document.getElementById('tStat'); sEl.className='status '+cls; sEl.innerHTML=txt + (st.run==='demo' && demoMsg && demoMsg.ack ? ` <button class="ackBtn" id="ackBtn">${demoMsg.ack}</button>` : '');
 }
 
 /* ================= render ================= */
@@ -416,14 +417,22 @@ function render(){
 let demoToken=0;
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const speed = d => d.kind==='cont' ? 70 : (d.kind==='hist' && st.even ? 110 : 420);
-function stopDemo(){ demoToken++; }
+function stopDemo(){ const r=ackResolve; demoToken++; if(r) r(); }
+function ack(txt, label){                         // pause the demo at a key step until the user presses the button
+  return new Promise(res=>{ demoMsg={cls:'near', txt, ack:label};
+    ackResolve=()=>{ ackResolve=null; demoMsg={cls:'go', txt:'Moving…'}; render(); res(); }; render();
+    const b=document.getElementById('ackBtn'); if(b) b.focus(); });
+}
+document.getElementById('task').addEventListener('click', e=>{ if(e.target.closest('#ackBtn') && ackResolve) ackResolve(); });
 function clearFx(){ st.fx={}; demoMsg=''; }
 async function playDemo(){
   const token=++demoToken, list=DS[st.dist];
   clearFx(); demoMsg={cls:'go', txt:'Moving…'};
   for(const d of list) st.x[d.key]=d.xmin;
   render(); await sleep(500); if(token!==demoToken) return;
-  const results = await Promise.all(list.map(d => st.mode===1 ? demoFn(d, token) : demoInv(d, token)));
+  let results;
+  if(st.mode===1) results = await Promise.all(list.map(d => demoFn(d, token)));
+  else { results=[]; for(const d of list){ results.push(await demoInv(d, token, list.length>1)); if(token!==demoToken) return; } }
   if(token!==demoToken) return;
   const tagOf=d=>d.name?d.key+': ':'';
   demoMsg = {cls: results.every(r=>r.cls==='ok')?'ok':'near', txt: list.map((d,i)=>tagOf(d)+results[i].txt).join(' · ')};
@@ -437,7 +446,8 @@ async function demoFn(d, token){                 // x → p: walk right to the c
   st.fx[d.key]={p:true}; render();
   return {cls:'ok', txt:`x = ${fmtX(d,target)} → p = ${fmtP(S(d,target)*100)}`};
 }
-async function demoInv(d, token){                // p → x: walk right until P(X ≤ x) reaches p
+async function demoInv(d, token, multi){
+  const tg = multi ? d.key+': ' : '';                // p → x: walk right until P(X ≤ x) reaches p
   const p=st.p;
   for(;;){
     const pv=S(d,st.x[d.key])*100;
@@ -449,15 +459,19 @@ async function demoInv(d, token){                // p → x: walk right until P(
     st.x[d.key]=r3(st.x[d.key]+stepOf(d)); tick(); render();
   }
   const xHi=st.x[d.key], pHi=S(d,xHi)*100;
-  st.fx[d.key]={p:true, note:`exceeds ${fmtP(p)}`}; demoMsg={cls:'near', txt:'Went past the target…'}; render();
+  st.fx[d.key]={p:true, note:`exceeds ${fmtP(p)}`}; render();
   if(xHi<=d.xmin+1e-9){ st.fx[d.key]={x:true}; render(); return {cls:'near', txt:`x = ${fmtX(d,xHi)} (p = ${fmtP(pHi)})`}; }
-  await sleep(1500); if(token!==demoToken) return {};
+  await ack(`${tg}Step 1 · Overshoot: at x = ${fmtX(d,xHi)}, p = ${fmtP(pHi)} is more than the target ${fmtP(p)}.`, 'Got it → step back one');
+  if(token!==demoToken) return {};
   const xLo=r3(xHi-stepOf(d)), pLo=S(d,xLo)*100;
   st.fx[d.key]={note:`exceeds ${fmtP(p)}`, ghost:xLo, ghostP:true}; tick(); render();
-  await sleep(1500); if(token!==demoToken) return {};
+  await ack(`${tg}Step 2 · Step back one: at x = ${fmtX(d,xLo)}, p = ${fmtP(pLo)} is less than the target ${fmtP(p)}.`, 'Got it → compare the two');
+  if(token!==demoToken) return {};
   const dHi=Math.abs(pHi-p), dLo=Math.abs(pLo-p);
   const pick = dLo < dHi-1e-9 ? xLo : xHi;        // a tie goes to the larger x
   st.x[d.key]=pick; st.fx[d.key]={x:true, ghost: pick===xHi ? xLo : xHi}; render();
+  await ack(`${tg}Step 3 · Compare: x = ${fmtX(d,xLo)} is off by ${fmtP(dLo)}, x = ${fmtX(d,xHi)} is off by ${fmtP(dHi)}. ${Math.abs(dLo-dHi)<1e-9?'A tie: take the larger x.':'Take the closer one.'}`, multi?'Got it → next':'Got it');
+  if(token!==demoToken) return {};
   return {cls:'near', txt:`Closest: x = ${fmtX(d,pick)} (p = ${fmtP(S(d,pick)*100)}, off by ${fmtP(Math.min(dHi,dLo))})`};
 }
 
